@@ -1481,7 +1481,9 @@ void SmtEngine::setDefaults() {
     Trace("smt") << "setting simplification mode to <" << d_logic.getLogicString() << "> " << (!qf_sat) << endl;
     //simplification=none works better for SMT LIB benchmarks with quantifiers, not others
     //options::simplificationMode.set(qf_sat || quantifiers ? SIMPLIFICATION_MODE_NONE : SIMPLIFICATION_MODE_BATCH);
-    if (qf_sat) options::simplificationMode.set(SIMPLIFICATION_MODE_NONE);
+    if (qf_sat || d_theoryEngine->useTheoryAlternative("idl")) {
+      options::simplificationMode.set(SIMPLIFICATION_MODE_NONE);
+    }
   }
 
   // If in arrays, set the UF handler to arrays

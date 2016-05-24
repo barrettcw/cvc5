@@ -35,6 +35,7 @@
 #include "options/option_exception.h"
 #include "options/smt_options.h"
 #include "options/quantifiers_options.h"
+#include "options/theory_options.h"
 
 namespace CVC4 {
 
@@ -179,6 +180,10 @@ const std::vector<std::string>& Options::getThreadArgv() const{
   return (*this)[options::threadArgv];
 }
 
+std::string Options::getUseTheoryString() const{
+  return options::useTheoryList();
+}
+  
 int Options::getSharingFilterByLength() const{
   return (*this)[options::sharingFilterByLength];
 }

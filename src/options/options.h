@@ -227,6 +227,7 @@ public:
   bool getWaitToJoin() const;
   const std::string& getForceLogicString() const;
   const std::vector<std::string>& getThreadArgv() const;
+  std::string getUseTheoryString() const;
   int getSharingFilterByLength() const;
   int getThreadId() const;
   int getVerbosity() const;
@@ -241,8 +242,8 @@ public:
   unsigned getThreads() const;
 
 
-  // TODO: Document these.
-  void setCeGuidedInst(bool);
+  // TODO: Document these. 
+ void setCeGuidedInst(bool);
   void setDumpSynth(bool);
   void setInputLanguage(InputLanguage);
   void setInteractive(bool);
