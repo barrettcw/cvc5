@@ -1,27 +1,8 @@
-/*********************                                                        */
-/*! \file theory_idl.h
- ** \verbatim
- ** Top contributors (to current version):
- **   Dejan Jovanovic, Morgan Deters, Tim King
- ** This file is part of the CVC4 project.
- ** Copyright (c) 2009-2016 by the authors listed in the file AUTHORS
- ** in the top-level source directory) and their institutional affiliations.
- ** All rights reserved.  See the file COPYING in the top-level source
- ** directory for licensing information.\endverbatim
- **
- ** \brief [[ Add one-line brief description here ]]
- **
- ** [[ Add lengthier description here ]]
- ** \todo document this file
- **/
-
 #pragma once
 
 #include "cvc4_private.h"
 
 #include "theory/theory.h"
-#include "theory/idl/idl_model.h"
-#include "theory/idl/idl_assertion_db.h"
 
 namespace CVC4 {
 namespace theory {
@@ -32,14 +13,31 @@ namespace idl {
  */
 class TheoryIdl : public Theory {
 
-  /** The current model */
-  IDLModel d_model;
+  /** Process a new assertion */
+  void processAssertion(TNode assertion);
 
-  /** The asserted constraints, organized by variable */
-  IDLAssertionDB d_assertionsDB;
+  /** Return true iff the graph has a negative cycle */
+  bool negativeCycle();
 
-  /** Process a new assertion, returns false if in conflict */
-  bool processAssertion(const IDLAssertion& assertion);
+  /** Print the matrix */
+  void printMatrix(Rational** matrix, bool** valid);
+
+  typedef context::CDHashMap<TNode, unsigned, TNodeHashFunction> TNodeToUnsignedCDMap;
+
+  /** Map from variables to the first element of their list */
+  TNodeToUnsignedCDMap d_varMap;
+
+  /** Context-dependent vector of variables */
+  context::CDList<TNode> d_varList;
+
+  /** i,jth entry is true iff there is an edge from i to j. */
+  bool** d_valid;
+
+  /** i,jth entry stores weight for edge from i to j. */
+  Rational** d_matrix;
+
+  /** Number of variables in the graph */
+  unsigned d_numVars;
 
 public:
 
@@ -47,6 +45,15 @@ public:
   TheoryIdl(context::Context* c, context::UserContext* u, OutputChannel& out,
             Valuation valuation, const LogicInfo& logicInfo);
 
+  /** Register a term that is in the formula */
+  void preRegisterTerm(TNode);
+
+  /** Set up the solving data structures */
+  void presolve();
+
+  /** Clean up the solving data structures */
+  void postsolve();
+  
   /** Pre-processing of input atoms */
   Node ppRewrite(TNode atom);
 

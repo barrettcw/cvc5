@@ -1078,14 +1078,14 @@ SmtEngine::SmtEngine(ExprManager* em) throw() :
                                     const_cast<const LogicInfo&>(d_logic),
                                     d_channels);
 
+  d_private->addUseTheoryListListener(d_theoryEngine);
+
   // Add the theories
   for(TheoryId id = theory::THEORY_FIRST; id < theory::THEORY_LAST; ++id) {
     TheoryConstructor::addTheory(d_theoryEngine, id);
     //register with proof engine if applicable
     THEORY_PROOF(ProofManager::currentPM()->getTheoryProofEngine()->registerTheory(d_theoryEngine->theoryOf(id)); );
   }
-
-  d_private->addUseTheoryListListener(d_theoryEngine);
 
   // global push/pop around everything, to ensure proper destruction
   // of context-dependent data structures
@@ -1481,7 +1481,7 @@ void SmtEngine::setDefaults() {
     Trace("smt") << "setting simplification mode to <" << d_logic.getLogicString() << "> " << (!qf_sat) << endl;
     //simplification=none works better for SMT LIB benchmarks with quantifiers, not others
     //options::simplificationMode.set(qf_sat || quantifiers ? SIMPLIFICATION_MODE_NONE : SIMPLIFICATION_MODE_BATCH);
-    options::simplificationMode.set(qf_sat ? SIMPLIFICATION_MODE_NONE : SIMPLIFICATION_MODE_BATCH);
+    if (qf_sat) options::simplificationMode.set(SIMPLIFICATION_MODE_NONE);
   }
 
   // If in arrays, set the UF handler to arrays

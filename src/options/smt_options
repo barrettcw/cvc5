@@ -13,7 +13,7 @@ common-option dumpToFileName dump-to --dump-to=FILE std::string :notify notifyDu
 expert-option forceLogicString force-logic --force-logic=LOGIC std::string :default "" :notify notifyForceLogic
  set the logic, and override all further user attempts to change it
 
-option simplificationMode simplification-mode --simplification=MODE SimplificationMode :handler stringToSimplificationMode :default SIMPLIFICATION_MODE_BATCH :read-write :include "options/simplification_mode.h"
+option simplificationMode simplification-mode --simplification=MODE SimplificationMode :handler stringToSimplificationMode :default SIMPLIFICATION_MODE_NONE :read-write :include "options/simplification_mode.h"
  choose simplification mode, see --simplification=help
 alias --no-simplification = --simplification=none
  turn off all simplification (same as --simplification=none)
