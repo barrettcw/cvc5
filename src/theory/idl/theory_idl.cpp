@@ -29,7 +29,8 @@ void TheoryIdl::preRegisterTerm(TNode node) {
   Assert(d_numVars == 0);
   if (node.isVar()) {
     Debug("theory::idl::vars") << "TheoryIdl::preRegisterTerm(): processing var " << node << std::endl;
-    d_varMap[node] = d_varMap.size();
+    unsigned size = d_varMap.size();
+    d_varMap[node] = size;
     d_varList.push_back(node);
   }
 }
