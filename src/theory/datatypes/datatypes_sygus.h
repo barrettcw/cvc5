@@ -56,7 +56,6 @@ class SygusSymBreakNew
 private:
   TheoryDatatypes * d_td;
   quantifiers::TermDbSygus * d_tds;
-  context::Context* d_context;
   typedef context::CDHashMap< Node, int, NodeHashFunction > IntMap;
   typedef context::CDHashMap< Node, Node, NodeHashFunction > NodeMap;
   typedef context::CDHashMap< Node, bool, NodeHashFunction > BoolMap;
@@ -147,8 +146,9 @@ private:
   void registerMeasureTerm( Node m );
   unsigned getSearchSizeFor( Node n );
   unsigned getSearchSizeForAnchor( Node n );
-  unsigned getSearchSizeForMeasureTerm( Node m );
-private:
+  unsigned getSearchSizeForMeasureTerm(Node m);
+
+ private:
   unsigned processSelectorChain( Node n, std::map< TypeNode, Node >& top_level, 
                                  std::map< Node, unsigned >& tdepth, std::vector< Node >& lemmas );
   bool debugTesters( Node n, Node vn, int ind, std::vector< Node >& lemmas );

@@ -65,11 +65,17 @@ void SygusSplitNew::getSygusSplits( Node n, const Datatype& dt, std::vector< Nod
   splits.insert( splits.end(), d_splits[n].begin(), d_splits[n].end() );
 }
 
-
-SygusSymBreakNew::SygusSymBreakNew( TheoryDatatypes * td, quantifiers::TermDbSygus * tds, context::Context* c ) : 
-d_td( td ), d_tds( tds ), d_context( c ), 
-d_testers( c ), d_is_const( c ), d_testers_exp( c ), d_active_terms( c ), d_currTermSize( c ) {
-  d_zero = NodeManager::currentNM()->mkConst( Rational(0) );
+SygusSymBreakNew::SygusSymBreakNew(TheoryDatatypes* td,
+                                   quantifiers::TermDbSygus* tds,
+                                   context::Context* c)
+    : d_td(td),
+      d_tds(tds),
+      d_testers(c),
+      d_is_const(c),
+      d_testers_exp(c),
+      d_active_terms(c),
+      d_currTermSize(c) {
+  d_zero = NodeManager::currentNM()->mkConst(Rational(0));
 }
 
 SygusSymBreakNew::~SygusSymBreakNew() {
@@ -256,7 +262,7 @@ void SygusSymBreakNew::registerTerm( Node n, std::vector< Node >& lemmas ) {
       registerSizeTerm( n, lemmas );
       if( d_register_st[n] ){
         d_term_to_anchor[n] = n;
-        d_term_to_anchor_conj[n] = d_tds->getConjectureFor(n);
+        d_term_to_anchor_conj[n] = d_tds->getConjectureForEnumerator(n);
         // this assertion fails if we have a sygus term in the search that is unmeasured
         Assert(d_term_to_anchor_conj[n] != NULL);
         d = 0;
@@ -355,29 +361,54 @@ void SygusSymBreakNew::assertTesterInternal( int tindex, TNode n, Node exp, std:
   Trace("sygus-sb-fair-debug") << "Tester " << exp << " is for depth " << d << " term in search size " << ssz << std::endl;
   //Assert( d<=ssz );
   if( options::sygusSymBreakLazy() ){
+    // dynamic symmetry breaking
     addSymBreakLemmasFor( ntn, n, d, lemmas );
   }
-     
-  // process simple symmetry breaking
+
   unsigned max_depth = ssz>=d ? ssz-d : 0;
   unsigned min_depth = d_simple_proc[exp];
   if( min_depth<=max_depth ){
     TNode x = getFreeVar( ntn );
-    Node rlv = getRelevancyCondition( n );
-    for( unsigned d=0; d<=max_depth; d++ ){
-      Node simple_sb_pred = getSimpleSymBreakPred( ntn, tindex, d );
-      if( !simple_sb_pred.isNull() ){
-        simple_sb_pred = simple_sb_pred.substitute( x, n );
-        if( !rlv.isNull() ){
-          simple_sb_pred = NodeManager::currentNM()->mkNode( kind::OR, rlv.negate(), simple_sb_pred ); 
-        }
-        lemmas.push_back( simple_sb_pred ); 
+    std::vector<Node> sb_lemmas;
+    for (unsigned ds = 0; ds <= max_depth; ds++)
+    {
+      // static conjecture-independent symmetry breaking
+      Node ipred = getSimpleSymBreakPred(ntn, tindex, ds);
+      if (!ipred.isNull())
+      {
+        sb_lemmas.push_back(ipred);
       }
+      // static conjecture-dependent symmetry breaking
+      std::map<Node, quantifiers::CegConjecture*>::iterator itc =
+          d_term_to_anchor_conj.find(n);
+      if (itc != d_term_to_anchor_conj.end())
+      {
+        quantifiers::CegConjecture* conj = itc->second;
+        Assert(conj != NULL);
+        Node dpred = conj->getSymmetryBreakingPredicate(x, a, ntn, tindex, ds);
+        if (!dpred.isNull())
+        {
+          sb_lemmas.push_back(dpred);
+        }
+      }
+    }
+
+    // add the above symmetry breaking predicates to lemmas
+    Node rlv = getRelevancyCondition(n);
+    for (unsigned i = 0; i < sb_lemmas.size(); i++)
+    {
+      Node pred = sb_lemmas[i].substitute(x, n);
+      if (!rlv.isNull())
+      {
+        pred = NodeManager::currentNM()->mkNode(kind::OR, rlv.negate(), pred);
+      }
+      lemmas.push_back(pred);
     }
   }
   d_simple_proc[exp] = max_depth + 1;
-  
-  // add back testers for the children if they exist
+
+  // now activate the children those testers were previously asserted in this
+  // context and are awaiting activation, if they exist.
   if( options::sygusSymBreakLazy() ){
     for( unsigned j=0; j<dt[tindex].getNumArgs(); j++ ){
       Node sel = NodeManager::currentNM()->mkNode( APPLY_SELECTOR_TOTAL, Node::fromExpr( dt[tindex].getSelectorInternal( ntn.toType(), j ) ), n );
@@ -725,26 +756,26 @@ void SygusSymBreakNew::registerSearchTerm( TypeNode tn, unsigned d, Node n, bool
 */
 class EquivSygusInvarianceTest : public quantifiers::SygusInvarianceTest {
 public:
-  EquivSygusInvarianceTest(){}
-  ~EquivSygusInvarianceTest(){}
-  /** initialize this invariance test
+ EquivSygusInvarianceTest() : d_conj(nullptr) {}
+ ~EquivSygusInvarianceTest() {}
+ /** initialize this invariance test
   * tn is the sygus type for e
   * aconj/e are used for conjecture-specific symmetry breaking
   * bvr is the builtin version of the right hand side of the rewrite that we are
   * checking for invariance
   */
-  void init(quantifiers::TermDbSygus* tds, TypeNode tn,
-            quantifiers::CegConjecture* aconj, Node e, Node bvr) {
-    //compute the current examples
-    d_bvr = bvr;
-    if (aconj->getPbe()->hasExamples(e)) {
-      d_conj = aconj;
-      d_enum = e;
-      unsigned nex = aconj->getPbe()->getNumExamples(e);
-      for( unsigned i=0; i<nex; i++ ){
-        d_exo.push_back(d_conj->getPbe()->evaluateBuiltin(tn, bvr, e, i));
-      }
-    }
+ void init(quantifiers::TermDbSygus* tds, TypeNode tn,
+           quantifiers::CegConjecture* aconj, Node e, Node bvr) {
+   // compute the current examples
+   d_bvr = bvr;
+   if (aconj->getPbe()->hasExamples(e)) {
+     d_conj = aconj;
+     d_enum = e;
+     unsigned nex = aconj->getPbe()->getNumExamples(e);
+     for (unsigned i = 0; i < nex; i++) {
+       d_exo.push_back(d_conj->getPbe()->evaluateBuiltin(tn, bvr, e, i));
+     }
+   }
   }
 protected:
  /** does nvn still rewrite to d_bvr? */
@@ -1048,9 +1079,10 @@ void SygusSymBreakNew::registerSizeTerm( Node e, std::vector< Node >& lemmas ) {
     if( e.getType().isDatatype() ){
       const Datatype& dt = ((DatatypeType)(e.getType()).toType()).getDatatype();
       if( dt.isSygus() ){
-        if (d_tds->isMeasuredTerm(e)) {
+        if (d_tds->isEnumerator(e))
+        {
           d_register_st[e] = true;
-          Node ag = d_tds->getActiveGuardForMeasureTerm( e );
+          Node ag = d_tds->getActiveGuardForEnumerator(e);
           if( !ag.isNull() ){
             d_anchor_to_active_guard[e] = ag;
           }
@@ -1151,10 +1183,11 @@ unsigned SygusSymBreakNew::getSearchSizeForAnchor( Node a ) {
   Trace("sygus-sb-debug2") << "get search size for anchor : " << a << std::endl;
   std::map< Node, Node >::iterator it = d_anchor_to_measure_term.find( a );
   Assert( it!=d_anchor_to_measure_term.end() );
-  return getSearchSizeForMeasureTerm( it->second );
+  return getSearchSizeForMeasureTerm(it->second);
 }
 
-unsigned SygusSymBreakNew::getSearchSizeForMeasureTerm( Node m ) {
+unsigned SygusSymBreakNew::getSearchSizeForMeasureTerm(Node m)
+{
   Trace("sygus-sb-debug2") << "get search size for measure : " << m << std::endl;
   std::map< Node, SearchSizeInfo * >::iterator its = d_szinfo.find( m );
   Assert( its!=d_szinfo.end() );
@@ -1237,7 +1270,7 @@ void SygusSymBreakNew::check( std::vector< Node >& lemmas ) {
   }
   //register any measured terms that we haven't encountered yet (should only be invoked on first call to check
   std::vector< Node > mts;
-  d_tds->getMeasuredTerms( mts );
+  d_tds->getEnumerators(mts);
   for( unsigned i=0; i<mts.size(); i++ ){
     registerSizeTerm( mts[i], lemmas );
   }
@@ -1341,6 +1374,12 @@ Node SygusSymBreakNew::SearchSizeInfo::getFairnessLiteral( unsigned s, TheoryDat
   if( options::sygusFair()!=SYGUS_FAIR_NONE ){
     std::map< unsigned, Node >::iterator it = d_lits.find( s );
     if( it==d_lits.end() ){
+      if (options::sygusAbortSize() != -1 &&
+          static_cast<int>(s) > options::sygusAbortSize()) {
+        Message() << "Maximum term size (" << options::sygusAbortSize()
+                  << ") for enumerative SyGuS exceeded." << std::endl;
+        exit(1);
+      }
       Assert( !d_this.isNull() );
       Node c = NodeManager::currentNM()->mkConst( Rational( s ) );
       Node lit = NodeManager::currentNM()->mkNode( DT_SYGUS_BOUND, d_this, c );
