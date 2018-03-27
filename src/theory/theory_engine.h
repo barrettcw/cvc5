@@ -20,6 +20,7 @@
 #define __CVC4__THEORY_ENGINE_H
 
 #include <deque>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -63,8 +64,7 @@ struct NodeTheoryPair {
   size_t timestamp;
   NodeTheoryPair(TNode node, theory::TheoryId theory, size_t timestamp = 0)
   : node(node), theory(theory), timestamp(timestamp) {}
-  NodeTheoryPair()
-  : theory(theory::THEORY_LAST) {}
+  NodeTheoryPair() : theory(theory::THEORY_LAST), timestamp() {}
   // Comparison doesn't take into account the timestamp
   bool operator == (const NodeTheoryPair& pair) const {
     return node == pair.node && theory == pair.theory;
@@ -157,14 +157,35 @@ class TheoryEngine {
     TheoryEngine& d_te;
   public:
     NotifyClass(TheoryEngine& te): d_te(te) {}
-    bool eqNotifyTriggerEquality(TNode equality, bool value) { return true; }
-    bool eqNotifyTriggerPredicate(TNode predicate, bool value) { return true; }
-    bool eqNotifyTriggerTermEquality(theory::TheoryId tag, TNode t1, TNode t2, bool value) { return true; }
-    void eqNotifyConstantTermMerge(TNode t1, TNode t2) {}
-    void eqNotifyNewClass(TNode t) { d_te.eqNotifyNewClass(t); }
-    void eqNotifyPreMerge(TNode t1, TNode t2) { d_te.eqNotifyPreMerge(t1, t2); }
-    void eqNotifyPostMerge(TNode t1, TNode t2) { d_te.eqNotifyPostMerge(t1, t2); }
-    void eqNotifyDisequal(TNode t1, TNode t2, TNode reason) { d_te.eqNotifyDisequal(t1, t2, reason); }
+    bool eqNotifyTriggerEquality(TNode equality, bool value) override
+    {
+      return true;
+    }
+    bool eqNotifyTriggerPredicate(TNode predicate, bool value) override
+    {
+      return true;
+    }
+    bool eqNotifyTriggerTermEquality(theory::TheoryId tag,
+                                     TNode t1,
+                                     TNode t2,
+                                     bool value) override
+    {
+      return true;
+    }
+    void eqNotifyConstantTermMerge(TNode t1, TNode t2) override {}
+    void eqNotifyNewClass(TNode t) override { d_te.eqNotifyNewClass(t); }
+    void eqNotifyPreMerge(TNode t1, TNode t2) override
+    {
+      d_te.eqNotifyPreMerge(t1, t2);
+    }
+    void eqNotifyPostMerge(TNode t1, TNode t2) override
+    {
+      d_te.eqNotifyPostMerge(t1, t2);
+    }
+    void eqNotifyDisequal(TNode t1, TNode t2, TNode reason) override
+    {
+      d_te.eqNotifyDisequal(t1, t2, reason);
+    }
   };/* class TheoryEngine::NotifyClass */
   NotifyClass d_masterEENotify;
 
@@ -266,7 +287,8 @@ class TheoryEngine {
       }
     }
 
-    void conflict(TNode conflictNode, Proof* pf = nullptr) override;
+    void conflict(TNode conflictNode,
+                  std::unique_ptr<Proof> pf = nullptr) override;
     bool propagate(TNode literal) override;
 
     theory::LemmaStatus lemma(TNode lemma, ProofRule rule,
@@ -460,10 +482,9 @@ public:
   /** Destroys a theory engine */
   ~TheoryEngine();
 
-  void interrupt() throw(ModalException);
-  /**
-   * "Spend" a resource during a search or preprocessing.
-   */
+  void interrupt();
+
+  /** "Spend" a resource during a search or preprocessing.*/
   void spendResource(unsigned amount);
 
   /**
@@ -706,7 +727,7 @@ public:
   /**
    * collect model info
    */
-  void collectModelInfo( theory::TheoryModel* m );
+  bool collectModelInfo(theory::TheoryModel* m);
   /** post process model */
   void postProcessModel( theory::TheoryModel* m );
 
@@ -714,6 +735,17 @@ public:
    * Get the current model
    */
   theory::TheoryModel* getModel();
+
+  /** get synth solutions
+   *
+   * This function adds entries to sol_map that map functions-to-synthesize with
+   * their solutions, for all active conjectures. This should be called
+   * immediately after the solver answers unsat for sygus input.
+   *
+   * For details on what is added to sol_map, see
+   * CegConjecture::getSynthSolutions.
+   */
+  void getSynthSolutions(std::map<Node, Node>& sol_map);
 
   /**
    * Get the model builder
@@ -854,17 +886,20 @@ private:
   std::set< std::string > d_theoryAlternatives;
 
   std::map< std::string, std::vector< theory::Theory* > > d_attr_handle;
-public:
 
-  /**
-   * Set user attribute.
-   * This function is called when an attribute is set by a user.  In SMT-LIBv2 this is done
-   * via the syntax (! n :attr)
+ public:
+  /** Set user attribute.
+   * 
+   * This function is called when an attribute is set by a user.  In SMT-LIBv2
+   * this is done via the syntax (! n :attr)
    */
-  void setUserAttribute(const std::string& attr, Node n, std::vector<Node>& node_values, std::string str_value);
+  void setUserAttribute(const std::string& attr,
+                        Node n,
+                        const std::vector<Node>& node_values,
+                        const std::string& str_value);
 
-  /**
-   * Handle user attribute.
+  /** Handle user attribute.
+   * 
    * Associates theory t with the attribute attr.  Theory t will be
    * notified whenever an attribute of name attr is set.
    */
@@ -876,7 +911,7 @@ public:
    */
   void checkTheoryAssertionsWithModel(bool hardFailure);
 
-private:
+ private:
   IntStat d_arithSubstitutionsAdded;
 
 };/* class TheoryEngine */

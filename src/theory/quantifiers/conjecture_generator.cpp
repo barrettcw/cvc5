@@ -20,7 +20,7 @@
 #include "theory/quantifiers/term_database.h"
 #include "theory/quantifiers/term_enumeration.h"
 #include "theory/quantifiers/term_util.h"
-#include "theory/quantifiers/trigger.h"
+#include "theory/quantifiers/ematching/trigger.h"
 #include "theory/theory_engine.h"
 
 using namespace CVC4;
@@ -334,9 +334,10 @@ bool ConjectureGenerator::hasEnumeratedUf( Node n ) {
 void ConjectureGenerator::reset_round( Theory::Effort e ) {
 
 }
-
-void ConjectureGenerator::check( Theory::Effort e, unsigned quant_e ) {
-  if( quant_e==QuantifiersEngine::QEFFORT_STANDARD ){
+void ConjectureGenerator::check(Theory::Effort e, QEffort quant_e)
+{
+  if (quant_e == QEFFORT_STANDARD)
+  {
     d_fullEffortCount++;
     if( d_fullEffortCount%optFullCheckFrequency()==0 ){
       d_hasAddedLemma = false;
