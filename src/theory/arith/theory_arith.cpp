@@ -353,6 +353,7 @@ bool TheoryArith::preNotifyFact(
     d_idlExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
     return true;
   }
+
   Trace("arith-check") << "TheoryArith::preNotifyFact: " << fact
                        << ", isPrereg=" << isPrereg
                        << ", isInternal=" << isInternal << std::endl;
@@ -396,7 +397,6 @@ void TheoryArith::propagate(Effort e) {
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
-
   if (d_idlExtension != nullptr)
   {
     return d_idlExtension->collectModelInfo(m, termSet);

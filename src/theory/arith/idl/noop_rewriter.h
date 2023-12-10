@@ -36,7 +36,7 @@ class NoopRewriter : public TheoryRewriter
   RewriteResponse postRewrite(TNode n) override
   {
     NodeManager* nm = NodeManager::currentNM();
-    if (n.getKind() == Kind::BITVECTOR_USUBO)
+    if (n.getKind() == Kind::NEG)
     {
       Node x = n[0];
       if (x.getKind() == Kind::CONST_RATIONAL)

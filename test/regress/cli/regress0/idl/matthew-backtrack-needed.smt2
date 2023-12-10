@@ -1,8 +1,7 @@
-; COMMAND-LINE: --arith-idl-ext
 (set-option :produce-models true)
 (set-logic QF_IDL)
 (set-info :source |Tests out a variety of syntaxes that the rewriter should support
-Matthew Sotoudeh
+by Matthew Sotoudeh
 |)
 (set-info :smt-lib-version 2.0)
 (set-info :category "crafted")

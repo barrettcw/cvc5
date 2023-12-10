@@ -1,4 +1,3 @@
-; COMMAND-LINE: --arith-idl-ext
 (set-logic QF_IDL)
 (set-info :source |Example for Formal Techniques Summer School May 23, 2016 by
 Clark Barrett

@@ -19,12 +19,10 @@
 #define CVC5__THEORY__ARITH__IDL__IDL_EXTENSION_H
 
 #include "context/cdlist.h"
-#include "context/cdhashmap.h"
 #include "smt/env_obj.h"
 #include "theory/skolem_lemma.h"
 #include "theory/theory.h"
 #include "theory/theory_model.h"
-#include "util/integer.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -33,17 +31,6 @@ namespace arith {
 class TheoryArith;
 
 namespace idl {
-
-// https://www.geeksforgeeks.org/how-to-create-an-unordered_map-of-pairs-in-c/
-struct hash_pair {
-  template <class T1, class T2>
-  size_t operator()(const std::pair<T1, T2>& p) const
-  {
-    auto hash1 = std::hash<T1>{}(p.first);
-    auto hash2 = std::hash<T2>{}(p.second);
-    return hash1 ^ hash2;
-  }
-};
 
 /**
  * Handles integer difference logic (IDL) constraints.
@@ -62,7 +49,7 @@ class IdlExtension : protected EnvObj
 
   /** Called for each asserted literal */
   void notifyFact(
-      TNode atom, bool pol, TNode assertion, bool isPrereg, bool isInternal);
+      TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal);
 
   /** Pre-processing of input atoms */
   Node ppRewrite(TNode atom, std::vector<SkolemLemma>& lems);
@@ -74,14 +61,14 @@ class IdlExtension : protected EnvObj
   bool collectModelInfo(TheoryModel* m, const std::set<Node>& termSet);
 
  private:
-  /** Returns a vector containing paths (vector of sequential edges/assertions)
-   * corresponding to negative cycles in the graph. Returns the empty vector
-   * iff there are no negative cycles.
-   * */
-  std::vector<std::vector<TNode>> negativeCycles();
+  /** Process a new assertion */
+  void processAssertion(TNode assertion);
+
+  /** Return true iff the graph has a negative cycle */
+  bool negativeCycle();
 
   /** Print the matrix */
-  void printMatrix(const std::vector<std::vector<Integer>>& matrix,
+  void printMatrix(const std::vector<std::vector<Rational>>& matrix,
                    const std::vector<std::vector<bool>>& valid);
 
   typedef context::CDHashMap<TNode, size_t> TNodeToUnsignedCDMap;
@@ -95,29 +82,15 @@ class IdlExtension : protected EnvObj
   /** Context-dependent vector of variables */
   context::CDList<TNode> d_varList;
 
-  /*** NOTE: The below four data structures are *only* added to if there is no
-   *   negative cycle --- as soon as a negative cycle is found, conflict_cycle
-   *   is updated and they are 'frozen' until a pop happens to clear
-   *   conflict_cycle. */
-  /** d_matrix[i][j] = tightest edge weight from i to j (if exists). */
-  context::CDHashMap<std::pair<size_t, size_t>, Integer, hash_pair> d_matrix;
-  /** d_facts[i][j] stores the literal that is responsible for edge i->j. */
-  context::CDHashMap<std::pair<size_t, size_t>, TNode, hash_pair> d_facts;
-  /** d_dist[i] = weight of the tightest path to i (Bellman-Ford). */
-  std::vector<context::CDO<Integer> *> d_dist;
-  /** d_pred[i] = predecessor along tightest path to i (Bellman-Ford) */
-  std::vector<context::CDO<size_t> *> d_pred;
-  /** If a conflict (negative cycle) is found, it is stored here. */
-  context::CDList<TNode> conflict_cycle;
+  /** Context-dependent list of asserted theory literals */
+  context::CDList<TNode> d_facts;
 
-  context::CDO<bool> d_dirty;
+  /** i,jth entry is true iff there is an edge from i to j. */
+  std::vector<std::vector<bool>> d_valid;
 
-  std::vector<bool> d_node_dirty;
+  /** i,jth entry stores weight for edge from i to j. */
+  std::vector<std::vector<Rational>> d_matrix;
 
-  void traceCycle(size_t dst, context::CDList<TNode> *into);
-
-  /** Shifted to zero always in the model. */
-  Node zero_node;
   /** Number of variables in the graph */
   size_t d_numVars;
 }; /* class IdlExtension */
