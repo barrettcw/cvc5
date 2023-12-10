@@ -497,7 +497,7 @@ void SetDefaults::setDefaultsPost(const LogicInfo& logic, Options& opts) const
       bool qf_sat = logic.isPure(THEORY_BOOL) && !logic.isQuantified();
       // simplification=none works better for SMT LIB benchmarks with
       // quantifiers, not others
-      if (qf_sat)
+      if (qf_sat || opts.arith.arithIdlExt)
       {
         SET_AND_NOTIFY(Smt,
                        simplificationMode,
