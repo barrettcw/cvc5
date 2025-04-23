@@ -77,3 +77,5 @@ Thanks to:
 - Vinicius Braga Freire for a modification in the proof printer for dot format,
   allowing the clusterization of the proof into logic groups. Furthermore,for
   implementing a built-in Web Assembly compilation method in 2022.
+
+test
